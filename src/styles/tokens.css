@@ -24,7 +24,9 @@
   --color-primary-dark: #4338ca;
 
   /* 版面と余白 */
-  --size-container: 440px;
+  /* 680px: この tool は2カラム（アップロード済み / シーケンス）UIのため、フリート標準の
+     440px から拡張している。640px未満ではスタック表示に切り替わる（README参照）。 */
+  --size-container: 680px;
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;

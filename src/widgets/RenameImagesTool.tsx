@@ -1,12 +1,14 @@
 /**
  * RenameImagesTool.
- * Drop several images, drag the thumbnails into the order you want, set a naming
- * template, and download every file renamed in sequence — as a .zip. Extensions are
- * always kept as-is; only the base name is templated.
+ * Two columns: uploaded images land in the left "pool"; dragging (or the +/Add all
+ * button) moves them into the right "sequence" in the order placed, where they can
+ * be reordered (drag or ↑/↓) and renamed via a template, then downloaded as a .zip.
+ * Only the sequence is zipped — the pool is a staging area, not included. Extensions
+ * are always kept as-is; only the base name is templated.
  *
  * Role split: renameEngine.ts (the template → filename logic, pure/testable) and
  * zipEngine.ts (bundling, @zip.js/zip.js) do the real work; this widget is the
- * drag-and-drop grid + template field + wiring, same shape as pdf-merge's
+ * two-list drag-and-drop UI + template field + wiring, same shape as pdf-merge's
  * ConversionManager but for images (no async thumbnail render needed — the browser
  * decodes the image directly via an object URL).
  */
@@ -37,15 +39,21 @@ function fileKey(f: File): string {
 
 export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
   const t = (ui as any)[locale] ?? ui.en;
-  const [files, setFiles] = useState<File[]>([]);
+  const [pool, setPool] = useState<File[]>([]);
+  const [sequence, setSequence] = useState<File[]>([]);
   const [template, setTemplate] = useState('{n:03}');
   const [startAt, setStartAt] = useState(1);
   const [busy, setBusy] = useState(false);
   const [errorToasts, setErrorToasts] = useState<ErrorToastItem[]>([]);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [overIndex, setOverIndex] = useState<number | null>(null);
-  const filesRef = useRef<File[]>([]);
-  filesRef.current = files;
+  // Drag state is File-reference based (not index-based): a drag can now cross
+  // from the pool into the sequence, so an index captured at dragstart would go
+  // stale the moment either list's length changes. Every File the app holds is a
+  // distinct instance never duplicated across the two lists, so `===` is safe.
+  const [dragSource, setDragSource] = useState<'pool' | 'sequence' | null>(null);
+  const [dragFile, setDragFile] = useState<File | null>(null);
+  const [overFile, setOverFile] = useState<File | null>(null);
+  const sequenceRef = useRef<File[]>([]);
+  sequenceRef.current = sequence;
   const thumbUrls = useRef<Map<string, string>>(new Map());
 
   const showErrorToast = useCallback((message: string) => {
@@ -72,14 +80,14 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
     return url;
   };
   useEffect(() => {
-    const live = new Set(files.map(fileKey));
+    const live = new Set([...pool, ...sequence].map(fileKey));
     for (const [key, url] of thumbUrls.current) {
       if (!live.has(key)) {
         URL.revokeObjectURL(url);
         thumbUrls.current.delete(key);
       }
     }
-  }, [files]);
+  }, [pool, sequence]);
   useEffect(() => {
     return () => {
       for (const url of thumbUrls.current.values()) URL.revokeObjectURL(url);
@@ -91,7 +99,7 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
       const accepted = incoming.filter(isAcceptedImage);
       const rejected = incoming.filter((f) => !isAcceptedImage(f));
       if (rejected.length) showErrorToast(t.errUnsupported.replace('{name}', rejected[0].name));
-      if (accepted.length) setFiles((prev) => [...prev, ...accepted]);
+      if (accepted.length) setPool((prev) => [...prev, ...accepted]);
       window.dispatchEvent(new CustomEvent('filesProcessed'));
     },
     [showErrorToast, t]
@@ -103,41 +111,100 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
     return () => window.removeEventListener('filesDropped', handler);
   }, [addFiles]);
 
+  // --- sequence-only reordering (up/down buttons) -------------------------
   const move = (i: number, dir: -1 | 1) =>
-    setFiles((prev) => {
+    setSequence((prev) => {
       const j = i + dir;
       if (j < 0 || j >= prev.length) return prev;
       const next = [...prev];
       [next[i], next[j]] = [next[j], next[i]];
       return next;
     });
-  const removeAt = (i: number) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
-  const clearAll = () => setFiles([]);
 
-  const reorderTo = (from: number, to: number) =>
-    setFiles((prev) => {
-      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev;
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
+  // --- cross-list moves -----------------------------------------------------
+  const moveToSequence = (file: File) => {
+    setPool((prev) => prev.filter((f) => f !== file));
+    setSequence((prev) => [...prev, file]);
+  };
+  const addAllToSequence = () => {
+    setPool((prev) => {
+      if (prev.length) setSequence((seq) => [...seq, ...prev]);
+      return [];
     });
+  };
+  const removeFromSequence = (file: File) => {
+    setSequence((prev) => prev.filter((f) => f !== file));
+    setPool((prev) => [...prev, file]);
+  };
+  const discardFromPool = (file: File) => setPool((prev) => prev.filter((f) => f !== file));
+  const clearAll = () => {
+    setPool([]);
+    setSequence([]);
+  };
 
-  // Preview the plan live so the grid can show each file's upcoming new name, and the
-  // download button can disable itself on a bad template without touching the engine.
+  // --- drag plumbing ---------------------------------------------------------
+  const resetDragState = () => {
+    setDragSource(null);
+    setDragFile(null);
+    setOverFile(null);
+  };
+  const onPoolDragStart = (file: File) => {
+    setDragSource('pool');
+    setDragFile(file);
+  };
+  const onSequenceDragStart = (file: File) => {
+    setDragSource('sequence');
+    setDragFile(file);
+  };
+  const onSequenceItemDragOver = (e: DragEvent, file: File) => {
+    e.preventDefault(); // required, or the browser refuses to allow a drop here
+    setOverFile(file);
+  };
+  const onSequenceItemDrop = (e: DragEvent, targetFile: File) => {
+    e.preventDefault();
+    e.stopPropagation(); // stop the container-level handler below from double-processing this same drop
+    if (dragSource === 'sequence' && dragFile && dragFile !== targetFile) {
+      setSequence((prev) => {
+        const from = prev.indexOf(dragFile);
+        const to = prev.indexOf(targetFile);
+        if (from === -1 || to === -1) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        return next;
+      });
+    } else if (dragSource === 'pool' && dragFile) {
+      moveToSequence(dragFile); // any pool->sequence drag always appends to the end
+    }
+    resetDragState();
+  };
+  // Catches drops on empty space / the empty-state placeholder, so dropping a
+  // pool item anywhere in the sequence pane works, not just on top of a row.
+  const onSequenceContainerDragOver = (e: DragEvent) => {
+    e.preventDefault();
+  };
+  const onSequenceContainerDrop = (e: DragEvent) => {
+    e.preventDefault();
+    if (dragSource === 'pool' && dragFile) moveToSequence(dragFile);
+    resetDragState();
+  };
+
+  // Preview the plan live so the sequence list can show each file's upcoming new
+  // name, and the download button can disable itself on a bad template without
+  // touching the engine.
   let plan: RenamePlanItem[] | null = null;
   let planError: string | null = null;
   try {
-    plan = files.length ? buildRenamePlan(files, template, startAt) : [];
+    plan = sequence.length ? buildRenamePlan(sequence, template, startAt) : [];
   } catch (error) {
     planError = resolveErrorMessage(error, t);
   }
 
   const handleDownload = useCallback(async () => {
-    if (busy || !files.length) return;
+    if (busy || !sequence.length) return;
     setBusy(true);
     try {
-      const finalPlan = buildRenamePlan(filesRef.current, template, startAt);
+      const finalPlan = buildRenamePlan(sequenceRef.current, template, startAt);
       const blob = await zipRenamedFiles(finalPlan);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -152,7 +219,7 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
     } finally {
       setBusy(false);
     }
-  }, [busy, files.length, template, startAt, showErrorToast, t]);
+  }, [busy, sequence.length, template, startAt, showErrorToast, t]);
 
   return (
     <div>
@@ -199,151 +266,218 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
           />
         </div>
 
-        {files.length > 0 && (
+        {(pool.length > 0 || sequence.length > 0) && (
           <>
-            <div
-              role="list"
-              aria-label={t.thumbGridAria ?? 'Image order'}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                gap: 'var(--space-3)',
-                marginBottom: 'var(--space-4)',
-              }}
-            >
-              {files.map((f, i) => {
-                const newName = plan?.[i]?.name;
-                const isDragging = dragIndex === i;
-                const isOver = overIndex === i && dragIndex !== null && dragIndex !== i;
-                return (
-                  <div
-                    key={fileKey(f)}
-                    role="listitem"
-                    draggable
-                    onDragStart={() => setDragIndex(i)}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setOverIndex(i);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (dragIndex !== null) reorderTo(dragIndex, i);
-                      setDragIndex(null);
-                      setOverIndex(null);
-                    }}
-                    onDragEnd={() => {
-                      setDragIndex(null);
-                      setOverIndex(null);
-                    }}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 'var(--space-1)',
-                      padding: 'var(--space-2)',
-                      border: `1px solid ${isOver ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                      borderRadius: 'var(--radius-sm)',
-                      background: 'var(--color-bg)',
-                      opacity: isDragging ? 0.4 : 1,
-                      cursor: 'grab',
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: 'relative',
-                        width: '100%',
-                        aspectRatio: '1 / 1',
-                        overflow: 'hidden',
-                        borderRadius: '2px',
-                        border: '1px solid var(--color-border)',
-                        background: 'var(--color-surface)',
-                      }}
+            <div class="rn-columns">
+              {/* ---- LEFT: pool (uploaded, not yet sequenced) ---- */}
+              <div class="rn-column">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-2);margin-bottom:var(--space-1);">
+                  <h4 style="margin:0;font-size:var(--fs-3);font-weight:600;">
+                    {t.poolHeading} <span class="num" style="color:var(--color-subtle);font-size:var(--fs-1);">{pool.length}</span>
+                  </h4>
+                  {pool.length > 0 && (
+                    <button
+                      id="add-all-action"
+                      type="button"
+                      class="app-button app-button--secondary"
+                      onClick={addAllToSequence}
                     >
-                      <img
-                        src={thumbUrlFor(f)}
-                        alt=""
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                      />
-                      <span
-                        class="num"
-                        aria-hidden="true"
+                      {t.addAllToSequence}
+                    </button>
+                  )}
+                </div>
+
+                {pool.length > 0 ? (
+                  <div role="list" aria-label={t.poolListAria} style="display:flex;flex-direction:column;gap:var(--space-2);">
+                    {pool.map((f) => (
+                      <div
+                        key={fileKey(f)}
+                        role="listitem"
+                        draggable
+                        onDragStart={() => onPoolDragStart(f)}
+                        onDragEnd={resetDragState}
                         style={{
-                          position: 'absolute',
-                          top: '4px',
-                          left: '4px',
-                          background: 'var(--color-primary)',
-                          color: '#fff',
-                          borderRadius: '999px',
-                          minWidth: '20px',
-                          height: '20px',
-                          fontSize: 'var(--fs-0)',
                           display: 'flex',
+                          justifyContent: 'space-between',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '0 5px',
+                          gap: 'var(--space-3)',
+                          padding: 'var(--space-2) var(--space-3)',
+                          background: 'var(--color-bg)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          opacity: dragFile === f ? 0.4 : 1,
+                          cursor: 'grab',
                         }}
                       >
-                        {i + 1}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 'var(--fs-0)',
-                        color: 'var(--color-subtle)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                      title={f.name}
-                    >
-                      {f.name}
-                    </div>
-                    <div
-                      class="num"
-                      style={{
-                        fontSize: 'var(--fs-1)',
-                        fontWeight: 600,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                      title={newName}
-                    >
-                      {newName ?? '—'}
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <span style="display: flex; gap: var(--space-1);">
-                        <button
-                          type="button"
-                          aria-label={t.moveUp ?? 'Move up'}
-                          disabled={i === 0}
-                          onClick={() => move(i, -1)}
-                          style="background:none;border:none;cursor:pointer;color:var(--color-primary);font-size:var(--fs-2);padding:2px;"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={t.moveDown ?? 'Move down'}
-                          disabled={i === files.length - 1}
-                          onClick={() => move(i, 1)}
-                          style="background:none;border:none;cursor:pointer;color:var(--color-primary);font-size:var(--fs-2);padding:2px;"
-                        >
-                          ↓
-                        </button>
-                      </span>
-                      <button
-                        type="button"
-                        aria-label={t.removeFile ?? 'Remove'}
-                        onClick={() => removeAt(i)}
-                        style="background:none;border:none;cursor:pointer;color:var(--color-danger);font-size:var(--fs-2);padding:2px;"
-                      >
-                        ×
-                      </button>
-                    </div>
+                        <span style="display:flex;align-items:center;gap:var(--space-3);min-width:0;overflow:hidden;">
+                          <span
+                            aria-hidden="true"
+                            style={{ flexShrink: '0', width: '34px', height: '46px', overflow: 'hidden', border: '1px solid var(--color-border)', borderRadius: '2px', background: 'var(--color-surface)' }}
+                          >
+                            <img src={thumbUrlFor(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          </span>
+                          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-2);" title={f.name}>
+                            {f.name}
+                          </span>
+                        </span>
+                        <span style="display:flex;gap:var(--space-1);align-items:center;flex-shrink:0;">
+                          <button
+                            type="button"
+                            aria-label={t.addToSequence}
+                            onClick={() => moveToSequence(f)}
+                            style="background:none;border:none;cursor:pointer;color:var(--color-primary);font-size:var(--fs-2);padding:2px;"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={t.discardFile}
+                            onClick={() => discardFromPool(f)}
+                            style="background:none;border:none;cursor:pointer;color:var(--color-danger);font-size:var(--fs-2);padding:2px;"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                );
-              })}
+                ) : (
+                  <div style="padding:var(--space-4);border:1px dashed var(--color-border);border-radius:var(--radius-sm);color:var(--color-subtle);font-size:var(--fs-1);text-align:center;">
+                    {t.poolEmptyHint}
+                  </div>
+                )}
+              </div>
+
+              {/* ---- RIGHT: sequence (what gets renamed + zipped) ---- */}
+              <div class="rn-column" onDragOver={onSequenceContainerDragOver} onDrop={onSequenceContainerDrop}>
+                <h4 style="margin:0 0 var(--space-1) 0;font-size:var(--fs-3);font-weight:600;">
+                  {t.sequenceHeading} <span class="num" style="color:var(--color-subtle);font-size:var(--fs-1);">{sequence.length}</span>
+                </h4>
+
+                {sequence.length > 0 ? (
+                  <div role="list" aria-label={t.sequenceListAria} style="display:flex;flex-direction:column;gap:var(--space-2);">
+                    {sequence.map((f, i) => {
+                      const newName = plan?.[i]?.name;
+                      const isDragging = dragSource === 'sequence' && dragFile === f;
+                      const isOver = overFile === f && dragFile !== f;
+                      return (
+                        <div
+                          key={fileKey(f)}
+                          role="listitem"
+                          draggable
+                          onDragStart={() => onSequenceDragStart(f)}
+                          onDragOver={(e) => onSequenceItemDragOver(e, f)}
+                          onDrop={(e) => onSequenceItemDrop(e, f)}
+                          onDragEnd={resetDragState}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 'var(--space-3)',
+                            padding: 'var(--space-2) var(--space-3)',
+                            background: 'var(--color-bg)',
+                            border: `1px solid ${isOver ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                            borderRadius: 'var(--radius-sm)',
+                            opacity: isDragging ? 0.4 : 1,
+                            cursor: 'grab',
+                          }}
+                        >
+                          <span style="display:flex;align-items:center;gap:var(--space-3);min-width:0;overflow:hidden;">
+                            <span
+                              aria-hidden="true"
+                              style={{ flexShrink: '0', width: '34px', height: '46px', overflow: 'hidden', border: '1px solid var(--color-border)', borderRadius: '2px', background: 'var(--color-surface)' }}
+                            >
+                              <img src={thumbUrlFor(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            </span>
+                            <span style="min-width:0;overflow:hidden;">
+                              <span
+                                style={{
+                                  fontSize: 'var(--fs-1)',
+                                  color: 'var(--color-subtle)',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  display: 'block',
+                                }}
+                                title={f.name}
+                              >
+                                <span class="num">{i + 1}.</span> {f.name}
+                              </span>
+                              <span
+                                class="num"
+                                style={{
+                                  fontSize: 'var(--fs-2)',
+                                  fontWeight: 600,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  display: 'block',
+                                }}
+                                title={newName}
+                              >
+                                {newName ?? '—'}
+                              </span>
+                            </span>
+                          </span>
+                          <span style="display:flex;gap:var(--space-1);align-items:center;flex-shrink:0;">
+                            <button
+                              type="button"
+                              aria-label={t.moveUp}
+                              disabled={i === 0}
+                              onClick={() => move(i, -1)}
+                              style="background:none;border:none;cursor:pointer;color:var(--color-primary);font-size:var(--fs-2);padding:2px;"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={t.moveDown}
+                              disabled={i === sequence.length - 1}
+                              onClick={() => move(i, 1)}
+                              style="background:none;border:none;cursor:pointer;color:var(--color-primary);font-size:var(--fs-2);padding:2px;"
+                            >
+                              ↓
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={t.backToPool}
+                              onClick={() => removeFromSequence(f)}
+                              style="background:none;border:none;cursor:pointer;color:var(--color-danger);font-size:var(--fs-2);padding:2px;"
+                            >
+                              ↩
+                            </button>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style="padding:var(--space-4);border:1px dashed var(--color-border);border-radius:var(--radius-sm);color:var(--color-subtle);font-size:var(--fs-1);text-align:center;">
+                    {t.sequenceEmptyHint}
+                  </div>
+                )}
+              </div>
             </div>
+
+            <style>{`
+              .rn-columns {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: var(--space-4);
+                margin-bottom: var(--space-4);
+              }
+              .rn-column {
+                display: flex;
+                flex-direction: column;
+                gap: var(--space-2);
+                min-width: 0;
+              }
+              @media (max-width: 640px) {
+                .rn-columns {
+                  grid-template-columns: 1fr;
+                }
+              }
+            `}</style>
 
             <div
               style={{
@@ -409,9 +543,9 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
         )}
 
         <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);">
-          <span style="font-size: var(--fs-2); color: var(--color-subtle);" class="num">{files.length}</span>
+          <span style="font-size: var(--fs-2); color: var(--color-subtle);" class="num">{sequence.length}</span>
           <span style="display: flex; gap: var(--space-2);">
-            {files.length > 0 && (
+            {(pool.length > 0 || sequence.length > 0) && (
               <AppButton variant="secondary" onClick={clearAll}>
                 {t.clearAll}
               </AppButton>
@@ -419,7 +553,7 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
             <button
               id="download-action"
               onClick={handleDownload}
-              disabled={files.length === 0 || !!planError || busy}
+              disabled={sequence.length === 0 || !!planError || busy}
               class="app-button app-button--primary"
             >
               {busy ? (t.zipping ?? 'Zipping…') : (t.downloadZip ?? 'Download .zip')}

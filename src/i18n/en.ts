@@ -44,11 +44,15 @@ export const en: ToolContent = {
     steps: [
       {
         h3: 'Add your images',
-        p: 'Click to choose files, or drop them anywhere on the page. Multiple files at once is fine.',
+        p: 'Click to choose files, or drop them anywhere on the page. They land in the Uploaded list on the left; multiple files at once is fine.',
       },
       {
-        h3: 'Drag to reorder',
-        p: 'Drag a thumbnail to move it, or use the up/down buttons. The number badge on each thumbnail shows its position.',
+        h3: 'Build your sequence',
+        p: 'Drag a photo from Uploaded into the Sequence list on the right — or click its + button — in the order you want. "Add all" moves everything at once.',
+      },
+      {
+        h3: 'Fine-tune the order',
+        p: 'Drag within the Sequence list, or use the up/down buttons, to adjust it further. Removing an item sends it back to Uploaded, so nothing is lost.',
       },
       {
         h3: 'Set the naming pattern',
@@ -56,7 +60,7 @@ export const en: ToolContent = {
       },
       {
         h3: 'Download the .zip',
-        p: 'Every file is renamed to match its position and bundled into one .zip — extensions are never changed.',
+        p: 'Every file in the Sequence is renamed to match its position and bundled into one .zip — extensions are never changed.',
       },
     ],
   },
@@ -77,7 +81,7 @@ export const en: ToolContent = {
     },
     {
       q: 'What happens if two files would end up with the same name?',
-      a: 'The tool checks every planned filename before it lets you download, and shows a clear message if any two would collide (for example, a template with no {n} at all would give every file the same name). Fix the template or the count and the check passes automatically.',
+      a: "It can't happen. Every file in the Sequence gets a distinct position number, and the template must contain {n} — the tool blocks download with a clear message until it does. Two different positions can never render the same name.",
     },
     {
       q: 'Does it edit or re-encode the images?',

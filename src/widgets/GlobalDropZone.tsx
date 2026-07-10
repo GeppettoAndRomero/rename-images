@@ -19,9 +19,17 @@ export function GlobalDropZone({ locale = 'en' }: GlobalDropZoneProps) {
   useEffect(() => {
     let dragCounter = 0;
 
+    // In-page drags (e.g. rename-images' pool/sequence reordering) also fire
+    // dragenter/dragleave on document.body as the pointer crosses nested rows,
+    // but never populate dataTransfer with a 'Files' type. Without this guard,
+    // deeply nested drop targets make enter/leave counts easy to unbalance,
+    // leaving this fullscreen overlay stuck visible after an internal drag.
+    const isFileDrag = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+
     const handleDragEnter = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      if (!isFileDrag(e)) return;
 
       dragCounter++;
       if (dragCounter === 1) {
@@ -32,6 +40,7 @@ export function GlobalDropZone({ locale = 'en' }: GlobalDropZoneProps) {
     const handleDragLeave = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      if (!isFileDrag(e)) return;
 
       dragCounter--;
       if (dragCounter === 0) {
@@ -47,6 +56,7 @@ export function GlobalDropZone({ locale = 'en' }: GlobalDropZoneProps) {
     const handleDrop = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      if (!isFileDrag(e)) return; // internal drags are handled by the widget itself
 
       dragCounter = 0;
       setIsDragging(false);

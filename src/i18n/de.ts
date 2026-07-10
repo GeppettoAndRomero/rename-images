@@ -50,11 +50,15 @@ export const de: ToolContent = {
     steps: [
       {
         h3: 'Bilder hinzufügen',
-        p: 'Klicke, um Dateien auszuwählen, oder ziehe sie irgendwo auf die Seite. Mehrere Dateien auf einmal sind möglich.',
+        p: 'Klicke, um Dateien auszuwählen, oder ziehe sie irgendwo auf die Seite. Sie landen in der Liste "Hochgeladen" links. Mehrere Dateien auf einmal sind möglich.',
       },
       {
-        h3: 'Per Drag & Drop sortieren',
-        p: 'Ziehe eine Miniaturansicht, um sie zu verschieben, oder nutze die Auf/Ab-Schaltflächen. Die Nummer auf jeder Miniaturansicht zeigt die aktuelle Position.',
+        h3: 'Sequenz aufbauen',
+        p: 'Ziehe ein Bild aus "Hochgeladen" in die Liste "Sequenz" rechts (oder klicke auf sein +-Symbol) — in der gewünschten Reihenfolge. Mit "Alle zur Sequenz hinzufügen" verschiebst du alles auf einmal.',
+      },
+      {
+        h3: 'Reihenfolge feinabstimmen',
+        p: 'Ziehe innerhalb der Sequenz oder nutze die Auf/Ab-Schaltflächen zur Feinabstimmung. Entfernte Bilder wandern zurück nach "Hochgeladen" — nichts geht verloren.',
       },
       {
         h3: 'Benennungsmuster festlegen',
@@ -62,7 +66,7 @@ export const de: ToolContent = {
       },
       {
         h3: '.zip herunterladen',
-        p: 'Jede Datei wird passend zu ihrer Position umbenannt und in eine .zip-Datei gepackt — Dateiendungen werden nie geändert.',
+        p: 'Jede Datei in der Sequenz wird passend zu ihrer Position umbenannt und in eine .zip-Datei gepackt — Dateiendungen werden nie geändert.',
       },
     ],
   },
@@ -83,7 +87,7 @@ export const de: ToolContent = {
     },
     {
       q: 'Was passiert, wenn zwei Dateien denselben Namen erhalten würden?',
-      a: 'Das Tool prüft vor dem Download jeden geplanten Dateinamen und zeigt eine klare Meldung, falls zwei kollidieren würden (zum Beispiel würde eine Vorlage ganz ohne {n} allen Dateien denselben Namen geben). Sobald du die Vorlage oder die Anzahl anpasst, ist die Prüfung automatisch wieder erfüllt.',
+      a: 'Das kann nicht passieren. Jede Datei in der Sequenz erhält eine eigene, unterschiedliche Positionsnummer, und die Vorlage muss {n} enthalten — fehlt es, blockiert das Tool den Download mit einer klaren Meldung. Zwei unterschiedliche Positionen können strukturell nie denselben Namen ergeben.',
     },
     {
       q: 'Werden die Bilder bearbeitet oder neu kodiert?',

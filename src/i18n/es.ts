@@ -49,11 +49,15 @@ export const es: ToolContent = {
     steps: [
       {
         h3: 'Añade tus imágenes',
-        p: 'Haz clic para elegir archivos, o suéltalos en cualquier parte de la página. Puedes añadir varios a la vez.',
+        p: 'Haz clic para elegir archivos, o suéltalos en cualquier parte de la página. Llegan a la lista "Subidas" de la izquierda. Puedes añadir varios a la vez.',
       },
       {
-        h3: 'Arrastra para reordenar',
-        p: 'Arrastra una miniatura para moverla, o usa los botones de subir/bajar. El número en cada miniatura muestra su posición actual.',
+        h3: 'Construye tu secuencia',
+        p: 'Arrastra una imagen desde "Subidas" hasta la "Secuencia" de la derecha (o haz clic en su botón +), en el orden que quieras. "Añadir todo a la secuencia" las mueve todas a la vez.',
+      },
+      {
+        h3: 'Ajusta el orden',
+        p: 'Arrastra dentro de la secuencia, o usa los botones de subir/bajar, para ajustarla. Si quitas una imagen, vuelve a "Subidas": no se pierde.',
       },
       {
         h3: 'Define el patrón de nombres',
@@ -61,7 +65,7 @@ export const es: ToolContent = {
       },
       {
         h3: 'Descarga el .zip',
-        p: 'Cada archivo se renombra según su posición y se empaqueta en un único .zip; las extensiones nunca cambian.',
+        p: 'Cada archivo de la secuencia se renombra según su posición y se empaqueta en un único .zip; las extensiones nunca cambian.',
       },
     ],
   },
@@ -82,7 +86,7 @@ export const es: ToolContent = {
     },
     {
       q: '¿Qué pasa si dos archivos terminan con el mismo nombre?',
-      a: 'La herramienta comprueba todos los nombres previstos antes de dejarte descargar, y muestra un mensaje claro si dos coincidirían (por ejemplo, una plantilla sin {n} le daría el mismo nombre a todos los archivos). Al ajustar la plantilla o la cantidad de archivos, la comprobación se supera automáticamente.',
+      a: 'No puede pasar. Cada archivo de la secuencia recibe un número de posición distinto, y la plantilla debe contener {n} —si no lo tiene, la herramienta bloquea la descarga con un mensaje claro—. Dos posiciones distintas nunca pueden generar el mismo nombre.',
     },
     {
       q: '¿Se editan o se vuelven a codificar las imágenes?',

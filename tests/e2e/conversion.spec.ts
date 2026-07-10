@@ -49,13 +49,17 @@ test.describe('rename + reorder + zip', () => {
     await waitReady(page);
     await dropFixtures(page);
 
-    // Dropped order is blue, red, green. Default template {n:03} previews 001.jpg/002.jpg/003.png.
-    const grid = page.getByRole('list', { name: /image order/i });
-    await expect(grid.getByText('blue.jpg')).toBeVisible();
-    await expect(grid.getByText('001.jpg', { exact: true })).toBeVisible();
+    // Dropped files land in the pool first; move them all into the sequence.
+    await page.click('#add-all-action');
+
+    // Dropped order is blue, red, green. "Add all" preserves that order into the
+    // sequence. Default template {n:03} previews 001.jpg/002.jpg/003.png.
+    const sequence = page.getByRole('list', { name: /sequence/i });
+    await expect(sequence.getByText('blue.jpg')).toBeVisible();
+    await expect(sequence.getByText('001.jpg', { exact: true })).toBeVisible();
 
     // Move the last item (green.png) to the front with the up button, twice.
-    const items = grid.getByRole('listitem');
+    const items = sequence.getByRole('listitem');
     await expect(items).toHaveCount(3);
     const greenItem = items.filter({ hasText: 'green.png' });
     await greenItem.getByRole('button', { name: /move up/i }).click();
@@ -97,9 +101,44 @@ test.describe('rename + reorder + zip', () => {
     await page.goto('/rename-images/');
     await waitReady(page);
     await dropFixtures(page);
+    await page.click('#add-all-action'); // must be in the sequence for the template check to even run
 
     await page.fill('#rename-template', 'photo');
     await expect(page.getByRole('alert')).toContainText(/sequence number/i);
     await expect(page.locator('#download-action')).toBeDisabled();
+  });
+
+  test('download is disabled with an empty sequence and enables once items are added', async ({ page }) => {
+    await page.goto('/rename-images/');
+    await waitReady(page);
+    await dropFixtures(page);
+
+    await expect(page.locator('#download-action')).toBeDisabled();
+    await expect(page.getByRole('list', { name: /uploaded/i }).getByRole('listitem')).toHaveCount(3);
+    // No role="list" is rendered for the sequence column while it's empty (an
+    // empty-state placeholder is shown instead) — see the widget's JSX.
+    await expect(page.getByRole('list', { name: /sequence/i })).toHaveCount(0);
+
+    await page.click('#add-all-action');
+    await expect(page.locator('#download-action')).toBeEnabled();
+  });
+
+  test('removing from the sequence returns a file to the pool; discarding from the pool removes it entirely', async ({ page }) => {
+    await page.goto('/rename-images/');
+    await waitReady(page);
+    await dropFixtures(page);
+    await page.click('#add-all-action');
+
+    const sequence = page.getByRole('list', { name: /sequence/i });
+    const greenSeqItem = sequence.getByRole('listitem').filter({ hasText: 'green.png' });
+    await greenSeqItem.getByRole('button', { name: /back to pool/i }).click();
+
+    await expect(sequence.getByRole('listitem')).toHaveCount(2);
+    const pool = page.getByRole('list', { name: /uploaded/i });
+    const greenPoolItem = pool.getByRole('listitem').filter({ hasText: 'green.png' });
+    await expect(greenPoolItem).toBeVisible();
+
+    await greenPoolItem.getByRole('button', { name: /discard/i }).click();
+    await expect(page.getByRole('listitem').filter({ hasText: 'green.png' })).toHaveCount(0);
   });
 });
