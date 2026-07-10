@@ -18,7 +18,7 @@ import { AppButton } from './AppButton';
 import { AppField } from './AppField';
 import { ErrorToast } from './ErrorToast';
 import { isAcceptedImage } from '@/utils/fileValidation';
-import { buildRenamePlan, TEMPLATE_PRESETS, type RenamePlanItem } from '@/utils/renameEngine';
+import { buildRenamePlan, deriveZipName, TEMPLATE_PRESETS, type RenamePlanItem } from '@/utils/renameEngine';
 import { zipRenamedFiles } from '@/utils/zipEngine';
 import { resolveErrorMessage } from '@/utils/appError';
 import { ui } from '@/i18n/ui';
@@ -209,7 +209,7 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'renamed-images.zip';
+      a.download = deriveZipName(template);
       document.body.appendChild(a);
       a.click();
       a.remove();

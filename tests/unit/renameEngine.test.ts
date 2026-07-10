@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { AppError } from '@/utils/appError';
 import {
   buildRenamePlan,
+  deriveZipName,
   renderTemplate,
   templateHasSequence,
 } from '@/utils/renameEngine';
@@ -13,6 +14,34 @@ describe('templateHasSequence', () => {
     expect(templateHasSequence('{n}')).toBe(true);
     expect(templateHasSequence('IMG_{n:04}')).toBe(true);
     expect(templateHasSequence('no placeholder here')).toBe(false);
+  });
+
+  it('gives the same answer on repeated calls regardless of call order', () => {
+    // Regression test: templateHasSequence used to run .test() on a shared
+    // `g`-flagged regex, whose lastIndex persisted across calls and made
+    // results alternate true/false for the *same* input across renders.
+    for (let i = 0; i < 5; i++) {
+      expect(templateHasSequence('{n:03}')).toBe(true);
+      expect(templateHasSequence('{n:03}')).toBe(true);
+      expect(templateHasSequence('no placeholder')).toBe(false);
+    }
+  });
+});
+
+describe('deriveZipName', () => {
+  it('strips the placeholder and trailing separator to name the zip after the template', () => {
+    expect(deriveZipName('photo-{n:02}')).toBe('photo.zip');
+    expect(deriveZipName('IMG_{n:04}')).toBe('IMG.zip');
+    expect(deriveZipName('{n:03}-vacation')).toBe('vacation.zip');
+  });
+
+  it('falls back to renamed-images.zip when nothing is left but the placeholder', () => {
+    expect(deriveZipName('{n:03}')).toBe('renamed-images.zip');
+    expect(deriveZipName('  {n}  ')).toBe('renamed-images.zip');
+  });
+
+  it('replaces filesystem-unsafe characters', () => {
+    expect(deriveZipName('a/b:{n}')).toBe('a-b.zip');
   });
 });
 

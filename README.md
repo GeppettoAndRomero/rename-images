@@ -22,8 +22,10 @@ thumbnail directly — no decode/re-encode step, since only the filename changes
 template (`{n}` / `{n:03}`) is a small pure-function engine (`renameEngine.ts`) that maps
 each sequence position to a new base name while keeping its original extension untouched.
 The renamed files are bundled into a `.zip` with
-[@zip.js/zip.js](https://github.com/gildas-lormeau/zip.js). The whole pipeline runs
-client-side — there is no server component, so your files have no path off your device.
+[@zip.js/zip.js](https://github.com/gildas-lormeau/zip.js), named after the naming
+template itself (`photo-{n:02}` downloads as `photo.zip`; a template that's only the
+placeholder falls back to `renamed-images.zip`). The whole pipeline runs client-side —
+there is no server component, so your files have no path off your device.
 
 ## Features
 

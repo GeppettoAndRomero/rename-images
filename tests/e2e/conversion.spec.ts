@@ -81,7 +81,9 @@ test.describe('rename + reorder + zip', () => {
     const downloadPromise = page.waitForEvent('download', { timeout: 30_000 });
     await page.click('#download-action');
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.zip$/);
+    // Zip filename follows the naming template ("photo-{n:02}" -> "photo.zip"),
+    // not a fixed generic name.
+    expect(download.suggestedFilename()).toBe('photo.zip');
 
     const buf = readFileSync((await download.path()) as string);
     expect(isZip(buf)).toBe(true);

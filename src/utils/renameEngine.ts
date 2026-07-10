@@ -9,10 +9,15 @@
 import { AppError } from './appError';
 
 const PLACEHOLDER = /\{n(?::(\d+))?\}/g;
+// Separate non-global regex for existence checks: .test() on a `g`-flagged
+// regex advances its shared lastIndex on every call, so repeated checks
+// (e.g. across renders) alternate true/false depending on prior calls.
+// .replace() doesn't have this problem — it always resets lastIndex itself.
+const PLACEHOLDER_TEST = /\{n(?::(\d+))?\}/;
 
 /** Does the template contain at least one `{n}`/`{n:0X}` placeholder? */
 export function templateHasSequence(template: string): boolean {
-  return PLACEHOLDER.test(template);
+  return PLACEHOLDER_TEST.test(template);
 }
 
 /** Render one filename (without extension) for a given 1-based sequence number. */
@@ -59,3 +64,20 @@ export function buildRenamePlan(
 
 /** A few real-world preset templates, shown as quick-pick chips in the UI. */
 export const TEMPLATE_PRESETS = ['{n:03}', 'IMG_{n:04}', 'photo-{n:03}'] as const;
+
+const FILENAME_UNSAFE = /[\\/:*?"<>|]/g;
+
+/**
+ * Turn the naming template into the downloaded .zip's base name, e.g.
+ * "photo-{n:02}" -> "photo.zip", "IMG_{n:04}" -> "IMG.zip". Falls back to
+ * "renamed-images.zip" when stripping the placeholder leaves nothing usable
+ * (e.g. the template is just "{n:03}").
+ */
+export function deriveZipName(template: string): string {
+  const base = template
+    .replace(PLACEHOLDER, '')
+    .replace(FILENAME_UNSAFE, '-')
+    .trim()
+    .replace(/^[-_.\s]+|[-_.\s]+$/g, '');
+  return `${base || 'renamed-images'}.zip`;
+}
