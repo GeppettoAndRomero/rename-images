@@ -309,12 +309,14 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
                           cursor: 'grab',
                         }}
                       >
-                        <span style="display:flex;align-items:center;gap:var(--space-3);min-width:0;overflow:hidden;">
+                        <span style="display:flex;align-items:center;gap:var(--space-3);min-width:0;">
                           <span
                             aria-hidden="true"
-                            style={{ flexShrink: '0', width: '34px', height: '46px', overflow: 'hidden', border: '1px solid var(--color-border)', borderRadius: '2px', background: 'var(--color-surface)' }}
+                            class="rn-thumb"
+                            style={{ flexShrink: '0', width: '34px', height: '46px', border: '1px solid var(--color-border)', borderRadius: '2px', background: 'var(--color-surface)' }}
                           >
                             <img src={thumbUrlFor(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            <img class="rn-thumb__preview" src={thumbUrlFor(f)} alt="" />
                           </span>
                           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-2);" title={f.name}>
                             {f.name}
@@ -382,12 +384,14 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
                             cursor: 'grab',
                           }}
                         >
-                          <span style="display:flex;align-items:center;gap:var(--space-3);min-width:0;overflow:hidden;">
+                          <span style="display:flex;align-items:center;gap:var(--space-3);min-width:0;">
                             <span
                               aria-hidden="true"
-                              style={{ flexShrink: '0', width: '34px', height: '46px', overflow: 'hidden', border: '1px solid var(--color-border)', borderRadius: '2px', background: 'var(--color-surface)' }}
+                              class="rn-thumb"
+                              style={{ flexShrink: '0', width: '34px', height: '46px', border: '1px solid var(--color-border)', borderRadius: '2px', background: 'var(--color-surface)' }}
                             >
                               <img src={thumbUrlFor(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                              <img class="rn-thumb__preview" src={thumbUrlFor(f)} alt="" />
                             </span>
                             <span style="min-width:0;overflow:hidden;">
                               <span
@@ -476,6 +480,36 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
                 .rn-columns {
                   grid-template-columns: 1fr;
                 }
+              }
+              .rn-thumb {
+                position: relative;
+                overflow: hidden;
+              }
+              .rn-thumb:hover {
+                overflow: visible;
+                z-index: 5;
+              }
+              .rn-thumb__preview {
+                position: absolute;
+                bottom: calc(100% + 6px);
+                left: 0;
+                width: 140px;
+                height: 140px;
+                object-fit: cover;
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-sm);
+                box-shadow: var(--shadow-2);
+                background: var(--color-surface);
+                opacity: 0;
+                pointer-events: none;
+                transform: scale(0.92);
+                transform-origin: bottom left;
+                transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+                z-index: 20;
+              }
+              .rn-thumb:hover .rn-thumb__preview {
+                opacity: 1;
+                transform: scale(1);
               }
             `}</style>
 
