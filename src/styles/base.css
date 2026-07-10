@@ -37,10 +37,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* PWAモード時はbody全体の幅を制限（このtoolは2カラムUIのため680pxに拡張） */
+/* PWAモード時はbody全体の幅を制限 */
 @media (display-mode: standalone) {
   body {
-    max-width: 680px;
+    max-width: 500px;
     margin: 0 auto;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   }
@@ -85,10 +85,10 @@ small {
   padding-inline: var(--space-4);
 }
 
-/* PWAモード（スタンドアロン）での追加調整（このtoolは2カラムUIのため680pxに拡張） */
+/* PWAモード（スタンドアロン）での追加調整 */
 @media (display-mode: standalone) {
   .container {
-    max-width: 680px;
+    max-width: 440px;
   }
 }
 

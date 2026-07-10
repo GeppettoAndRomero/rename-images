@@ -1,21 +1,22 @@
 # rename-images
 
-Drop several images into the Uploaded pool, drag (or add) them into the Sequence in the
-order you want, and download every file in the Sequence renamed as a .zip — entirely in
-your browser. Files are processed on your device and never uploaded. Open source, works
-offline (PWA).
+Drop several images into one grid, tap them in the order you want to rename them (like
+the multi-select photo picker on your phone — a numbered badge appears on each tap), and
+download every numbered photo renamed as a .zip — entirely in your browser. Files are
+processed on your device and never uploaded. Open source, works offline (PWA).
 
 Part of [runlocally](https://runlocally.app) — small tools that run locally on your device.
 
 ## How it works
 
-Two columns: uploads land in the **pool** first, not included in the output. Dragging a
-pool item into the **sequence** (or clicking its + button, or "Add all") moves it there,
-appended in the order placed — only the sequence gets renamed and zipped. Removing a
-sequence item sends it back to the pool (reversible); discarding a pool item deletes it.
-The sequence itself supports drag reordering and up/down buttons, both kept working since
-Playwright can't reliably simulate native drag-and-drop, so the button path stays the
-tested one.
+Every uploaded photo sits in one grid. Tapping an unnumbered photo gives it the next
+sequence number; tapping an already-numbered photo removes it and the rest renumber
+automatically — only numbered photos get renamed and zipped, everything else just sits in
+the grid. Numbered photos can be fine-reordered by dragging on desktop, or with ↑/↓
+buttons that work everywhere (mouse, touch, keyboard) — deliberately not drag-only, since
+native HTML5 drag-and-drop doesn't work reliably on touchscreens. Removing a photo's
+number is reversible (it stays in the grid, tap it again to re-add); a separate discard
+button (×) removes it from the tool entirely.
 
 Each file gets an object URL (`URL.createObjectURL`) so the browser can render its
 thumbnail directly — no decode/re-encode step, since only the filename changes. The naming
@@ -29,20 +30,14 @@ there is no server component, so your files have no path off your device.
 
 ## Features
 
-- Two-column pool → sequence model: uploads stage in a pool; only the sequence is renamed and zipped
-- Drag-and-drop (or +/Add all/back-to-pool buttons) to move files between the two lists
-- Drag-and-drop (or up/down buttons) to reorder the sequence
+- Tap-to-order single grid: no separate lists, order is built by tap sequence (numbered badges)
+- Fully usable by tap alone — no drag required, so it works the same on desktop and mobile
+- Drag-and-drop (or up/down buttons) to fine-reorder already-numbered photos
+- Reversible: removing a number keeps the photo in the grid; discard (×) removes it for good
 - Naming template with a sequence placeholder: `{n}` or zero-padded `{n:03}`
 - Custom start number
 - File extensions are always preserved exactly as they were
 - Works offline (PWA), installable
-
-## Layout deviation (HANDBOOK.md §15.9)
-
-This tool widens `--size-container` to 680px (fleet default: ~440px) to fit the two
-columns side by side on desktop; below 640px width they stack into one column, matching
-the fleet's existing mobile-first breakpoint. Noted here per §15.9 — no separate sign-off
-required for a per-tool layout deviation, just a recorded rationale.
 
 ## Develop
 

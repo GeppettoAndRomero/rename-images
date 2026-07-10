@@ -1,16 +1,17 @@
 /**
  * RenameImagesTool.
- * Two columns: uploaded images land in the left "pool"; dragging (or the +/Add all
- * button) moves them into the right "sequence" in the order placed, where they can
- * be reordered (drag or ↑/↓) and renamed via a template, then downloaded as a .zip.
- * Only the sequence is zipped — the pool is a staging area, not included. Extensions
- * are always kept as-is; only the base name is templated.
+ * One grid of every uploaded thumbnail. Tap a thumbnail to give it the next
+ * sequence number (like the native multi-select photo picker on iOS/Android);
+ * tap an already-numbered thumbnail again to remove it from the sequence —
+ * later numbers shift down automatically. Only numbered thumbnails are
+ * renamed (via a template) and zipped; unnumbered ones just sit in the grid.
+ * Numbered thumbnails can be fine-reordered by dragging (desktop) or with
+ * ↑/↓ buttons (keyboard/touch/tests). Extensions are always kept as-is; only
+ * the base name is templated.
  *
- * Role split: renameEngine.ts (the template → filename logic, pure/testable) and
- * zipEngine.ts (bundling, @zip.js/zip.js) do the real work; this widget is the
- * two-list drag-and-drop UI + template field + wiring, same shape as pdf-merge's
- * ConversionManager but for images (no async thumbnail render needed — the browser
- * decodes the image directly via an object URL).
+ * Role split: renameEngine.ts (the template → filename logic, pure/testable)
+ * and zipEngine.ts (bundling, @zip.js/zip.js) do the real work; this widget
+ * is the grid + tap/drag/button wiring + template field.
  */
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { AppCard } from './AppCard';
@@ -39,17 +40,15 @@ function fileKey(f: File): string {
 
 export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
   const t = (ui as any)[locale] ?? ui.en;
-  const [pool, setPool] = useState<File[]>([]);
-  const [sequence, setSequence] = useState<File[]>([]);
+  const [allFiles, setAllFiles] = useState<File[]>([]); // every uploaded file, fixed upload order = grid order
+  const [sequence, setSequence] = useState<File[]>([]); // ordered subset of allFiles; badge number = indexOf+1
   const [template, setTemplate] = useState('{n:03}');
   const [startAt, setStartAt] = useState(1);
   const [busy, setBusy] = useState(false);
   const [errorToasts, setErrorToasts] = useState<ErrorToastItem[]>([]);
-  // Drag state is File-reference based (not index-based): a drag can now cross
-  // from the pool into the sequence, so an index captured at dragstart would go
-  // stale the moment either list's length changes. Every File the app holds is a
-  // distinct instance never duplicated across the two lists, so `===` is safe.
-  const [dragSource, setDragSource] = useState<'pool' | 'sequence' | null>(null);
+  // Drag state is File-reference based: every File the app holds is a distinct
+  // instance, so `===` safely identifies it without tracking indices that
+  // would go stale as the sequence changes length.
   const [dragFile, setDragFile] = useState<File | null>(null);
   const [overFile, setOverFile] = useState<File | null>(null);
   const sequenceRef = useRef<File[]>([]);
@@ -69,7 +68,7 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
   }, []);
 
   // Object URLs are cheap and synchronous (unlike PDF page rendering) — mint one per
-  // file the first time it's seen, revoke it when the file is finally dropped from the list.
+  // file the first time it's seen, revoke it when the file is finally discarded.
   const thumbUrlFor = (f: File): string => {
     const key = fileKey(f);
     let url = thumbUrls.current.get(key);
@@ -80,14 +79,14 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
     return url;
   };
   useEffect(() => {
-    const live = new Set([...pool, ...sequence].map(fileKey));
+    const live = new Set(allFiles.map(fileKey));
     for (const [key, url] of thumbUrls.current) {
       if (!live.has(key)) {
         URL.revokeObjectURL(url);
         thumbUrls.current.delete(key);
       }
     }
-  }, [pool, sequence]);
+  }, [allFiles]);
   useEffect(() => {
     return () => {
       for (const url of thumbUrls.current.values()) URL.revokeObjectURL(url);
@@ -99,7 +98,7 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
       const accepted = incoming.filter(isAcceptedImage);
       const rejected = incoming.filter((f) => !isAcceptedImage(f));
       if (rejected.length) showErrorToast(t.errUnsupported.replace('{name}', rejected[0].name));
-      if (accepted.length) setPool((prev) => [...prev, ...accepted]);
+      if (accepted.length) setAllFiles((prev) => [...prev, ...accepted]);
       window.dispatchEvent(new CustomEvent('filesProcessed'));
     },
     [showErrorToast, t]
@@ -121,49 +120,43 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
       return next;
     });
 
-  // --- cross-list moves -----------------------------------------------------
-  const moveToSequence = (file: File) => {
-    setPool((prev) => prev.filter((f) => f !== file));
-    setSequence((prev) => [...prev, file]);
-  };
-  const addAllToSequence = () => {
-    setPool((prev) => {
-      if (prev.length) setSequence((seq) => [...seq, ...prev]);
-      return [];
+  // --- tap to add/remove from the sequence --------------------------------
+  const toggleFile = (file: File) =>
+    setSequence((prev) => {
+      const idx = prev.indexOf(file);
+      if (idx === -1) return [...prev, file]; // unselected -> append, becomes the highest number
+      const next = [...prev];
+      next.splice(idx, 1); // selected -> remove; splice shifts everyone after it down automatically
+      return next;
     });
-  };
-  const removeFromSequence = (file: File) => {
+  const selectAllRemaining = () =>
+    setSequence((prev) => {
+      const already = new Set(prev);
+      const remaining = allFiles.filter((f) => !already.has(f));
+      return remaining.length ? [...prev, ...remaining] : prev;
+    });
+  const discardFile = (file: File) => {
+    setAllFiles((prev) => prev.filter((f) => f !== file));
     setSequence((prev) => prev.filter((f) => f !== file));
-    setPool((prev) => [...prev, file]);
   };
-  const discardFromPool = (file: File) => setPool((prev) => prev.filter((f) => f !== file));
   const clearAll = () => {
-    setPool([]);
+    setAllFiles([]);
     setSequence([]);
   };
 
-  // --- drag plumbing ---------------------------------------------------------
+  // --- drag plumbing (reordering among already-numbered thumbnails only) --
   const resetDragState = () => {
-    setDragSource(null);
     setDragFile(null);
     setOverFile(null);
   };
-  const onPoolDragStart = (file: File) => {
-    setDragSource('pool');
-    setDragFile(file);
-  };
-  const onSequenceDragStart = (file: File) => {
-    setDragSource('sequence');
-    setDragFile(file);
-  };
-  const onSequenceItemDragOver = (e: DragEvent, file: File) => {
+  const onDragStart = (file: File) => setDragFile(file);
+  const onDragOver = (e: DragEvent, file: File) => {
     e.preventDefault(); // required, or the browser refuses to allow a drop here
     setOverFile(file);
   };
-  const onSequenceItemDrop = (e: DragEvent, targetFile: File) => {
+  const onDrop = (e: DragEvent, targetFile: File) => {
     e.preventDefault();
-    e.stopPropagation(); // stop the container-level handler below from double-processing this same drop
-    if (dragSource === 'sequence' && dragFile && dragFile !== targetFile) {
+    if (dragFile && dragFile !== targetFile) {
       setSequence((prev) => {
         const from = prev.indexOf(dragFile);
         const to = prev.indexOf(targetFile);
@@ -173,25 +166,13 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
         next.splice(to, 0, moved);
         return next;
       });
-    } else if (dragSource === 'pool' && dragFile) {
-      moveToSequence(dragFile); // any pool->sequence drag always appends to the end
     }
     resetDragState();
   };
-  // Catches drops on empty space / the empty-state placeholder, so dropping a
-  // pool item anywhere in the sequence pane works, not just on top of a row.
-  const onSequenceContainerDragOver = (e: DragEvent) => {
-    e.preventDefault();
-  };
-  const onSequenceContainerDrop = (e: DragEvent) => {
-    e.preventDefault();
-    if (dragSource === 'pool' && dragFile) moveToSequence(dragFile);
-    resetDragState();
-  };
 
-  // Preview the plan live so the sequence list can show each file's upcoming new
-  // name, and the download button can disable itself on a bad template without
-  // touching the engine.
+  // Preview the plan live so each numbered card can show its upcoming new
+  // name, and the download button can disable itself on a bad template
+  // without touching the engine.
   let plan: RenamePlanItem[] | null = null;
   let planError: string | null = null;
   try {
@@ -220,6 +201,10 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
       setBusy(false);
     }
   }, [busy, sequence.length, template, startAt, showErrorToast, t]);
+
+  // Precomputed once per render so each card's badge lookup is O(1), not O(n).
+  const seqIndex = new Map<File, number>();
+  sequence.forEach((f, i) => seqIndex.set(f, i));
 
   return (
     <div>
@@ -266,250 +251,194 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
           />
         </div>
 
-        {(pool.length > 0 || sequence.length > 0) && (
+        {allFiles.length > 0 && (
           <>
-            <div class="rn-columns">
-              {/* ---- LEFT: pool (uploaded, not yet sequenced) ---- */}
-              <div class="rn-column">
-                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-2);margin-bottom:var(--space-1);">
-                  <h4 style="margin:0;font-size:var(--fs-3);font-weight:600;">
-                    {t.poolHeading} <span class="num" style="color:var(--color-subtle);font-size:var(--fs-1);">{pool.length}</span>
-                  </h4>
-                  {pool.length > 0 && (
-                    <button
-                      id="add-all-action"
-                      type="button"
-                      class="app-button app-button--secondary"
-                      onClick={addAllToSequence}
-                    >
-                      {t.addAllToSequence}
-                    </button>
-                  )}
-                </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:var(--space-2);margin-bottom:var(--space-2);flex-wrap:wrap;">
+              <p style="margin:0;font-size:var(--fs-1);color:var(--color-subtle);">
+                {t.gridHint}{' '}
+                <span class="num">
+                  {t.selectedCountLabel.replace('{selected}', String(sequence.length)).replace('{total}', String(allFiles.length))}
+                </span>
+              </p>
+              {sequence.length < allFiles.length && (
+                <button
+                  id="select-all-action"
+                  type="button"
+                  class="app-button app-button--secondary"
+                  onClick={selectAllRemaining}
+                >
+                  {t.selectAllRemaining}
+                </button>
+              )}
+            </div>
 
-                {pool.length > 0 ? (
-                  <div role="list" aria-label={t.poolListAria} style="display:flex;flex-direction:column;gap:var(--space-2);">
-                    {pool.map((f) => (
-                      <div
-                        key={fileKey(f)}
-                        role="listitem"
-                        draggable
-                        onDragStart={() => onPoolDragStart(f)}
-                        onDragEnd={resetDragState}
+            <div role="list" aria-label={t.gridAria} class="rn-grid">
+              {allFiles.map((f) => {
+                const pos = seqIndex.get(f);
+                const selected = pos !== undefined;
+                const newName = selected ? plan?.[pos as number]?.name : undefined;
+                const isDragging = selected && dragFile === f;
+                const isOver = selected && overFile === f && dragFile !== f;
+                const ariaLabel = selected
+                  ? t.thumbSelectedAria
+                      .replace('{name}', f.name)
+                      .replace('{n}', String((pos as number) + 1))
+                      .replace('{count}', String(sequence.length))
+                      .replace('{newName}', newName ?? '—')
+                  : t.thumbUnselectedAria.replace('{name}', f.name);
+                return (
+                  <div
+                    key={fileKey(f)}
+                    role="listitem"
+                    style={{ position: 'relative', opacity: isDragging ? 0.4 : 1 }}
+                    draggable={selected}
+                    onDragStart={selected ? () => onDragStart(f) : undefined}
+                    onDragOver={selected ? (e: DragEvent) => onDragOver(e, f) : undefined}
+                    onDrop={selected ? (e: DragEvent) => onDrop(e, f) : undefined}
+                    onDragEnd={resetDragState}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={selected}
+                      aria-label={ariaLabel}
+                      onClick={() => toggleFile(f)}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 'var(--space-1)',
+                        padding: 'var(--space-2)',
+                        border: `2px solid ${isOver ? 'var(--color-primary)' : selected ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                        borderRadius: 'var(--radius-sm)',
+                        background: selected ? 'color-mix(in srgb, var(--color-primary) 10%, var(--color-bg))' : 'var(--color-bg)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span
                         style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          gap: 'var(--space-3)',
-                          padding: 'var(--space-2) var(--space-3)',
-                          background: 'var(--color-bg)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: 'var(--radius-sm)',
-                          opacity: dragFile === f ? 0.4 : 1,
-                          cursor: 'grab',
+                          width: '100%',
+                          aspectRatio: '1 / 1',
+                          overflow: 'hidden',
+                          borderRadius: '2px',
+                          background: 'var(--color-surface)',
                         }}
                       >
-                        <span style="display:flex;align-items:center;gap:var(--space-3);min-width:0;">
-                          <span
-                            aria-hidden="true"
-                            class="rn-thumb"
-                            style={{ flexShrink: '0', width: '34px', height: '46px', border: '1px solid var(--color-border)', borderRadius: '2px', background: 'var(--color-surface)' }}
-                          >
-                            <img src={thumbUrlFor(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                            <img class="rn-thumb__preview" src={thumbUrlFor(f)} alt="" />
-                          </span>
-                          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-2);" title={f.name}>
-                            {f.name}
-                          </span>
-                        </span>
-                        <span style="display:flex;gap:var(--space-1);align-items:center;flex-shrink:0;">
-                          <button
-                            type="button"
-                            aria-label={t.addToSequence}
-                            onClick={() => moveToSequence(f)}
-                            style="background:none;border:none;cursor:pointer;color:var(--color-primary);font-size:var(--fs-2);padding:2px;"
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={t.discardFile}
-                            onClick={() => discardFromPool(f)}
-                            style="background:none;border:none;cursor:pointer;color:var(--color-danger);font-size:var(--fs-2);padding:2px;"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style="padding:var(--space-4);border:1px dashed var(--color-border);border-radius:var(--radius-sm);color:var(--color-subtle);font-size:var(--fs-1);text-align:center;">
-                    {t.poolEmptyHint}
-                  </div>
-                )}
-              </div>
-
-              {/* ---- RIGHT: sequence (what gets renamed + zipped) ---- */}
-              <div class="rn-column" onDragOver={onSequenceContainerDragOver} onDrop={onSequenceContainerDrop}>
-                <h4 style="margin:0 0 var(--space-1) 0;font-size:var(--fs-3);font-weight:600;">
-                  {t.sequenceHeading} <span class="num" style="color:var(--color-subtle);font-size:var(--fs-1);">{sequence.length}</span>
-                </h4>
-
-                {sequence.length > 0 ? (
-                  <div role="list" aria-label={t.sequenceListAria} style="display:flex;flex-direction:column;gap:var(--space-2);">
-                    {sequence.map((f, i) => {
-                      const newName = plan?.[i]?.name;
-                      const isDragging = dragSource === 'sequence' && dragFile === f;
-                      const isOver = overFile === f && dragFile !== f;
-                      return (
-                        <div
-                          key={fileKey(f)}
-                          role="listitem"
-                          draggable
-                          onDragStart={() => onSequenceDragStart(f)}
-                          onDragOver={(e) => onSequenceItemDragOver(e, f)}
-                          onDrop={(e) => onSequenceItemDrop(e, f)}
-                          onDragEnd={resetDragState}
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            gap: 'var(--space-3)',
-                            padding: 'var(--space-2) var(--space-3)',
-                            background: 'var(--color-bg)',
-                            border: `1px solid ${isOver ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                            borderRadius: 'var(--radius-sm)',
-                            opacity: isDragging ? 0.4 : 1,
-                            cursor: 'grab',
-                          }}
+                        <img
+                          src={thumbUrlFor(f)}
+                          alt=""
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: selected ? '1' : '0.85' }}
+                        />
+                      </span>
+                      <span
+                        class="num"
+                        style={{ fontSize: 'var(--fs-1)', color: 'var(--color-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}
+                        title={f.name}
+                      >
+                        {f.name}
+                      </span>
+                      {selected && (
+                        <span
+                          class="num"
+                          style={{ fontSize: 'var(--fs-1)', fontWeight: 600, color: 'var(--color-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}
+                          title={newName}
                         >
-                          <span style="display:flex;align-items:center;gap:var(--space-3);min-width:0;">
-                            <span
-                              aria-hidden="true"
-                              class="rn-thumb"
-                              style={{ flexShrink: '0', width: '34px', height: '46px', border: '1px solid var(--color-border)', borderRadius: '2px', background: 'var(--color-surface)' }}
-                            >
-                              <img src={thumbUrlFor(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                              <img class="rn-thumb__preview" src={thumbUrlFor(f)} alt="" />
-                            </span>
-                            <span style="min-width:0;overflow:hidden;">
-                              <span
-                                style={{
-                                  fontSize: 'var(--fs-1)',
-                                  color: 'var(--color-subtle)',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                  display: 'block',
-                                }}
-                                title={f.name}
-                              >
-                                <span class="num">{i + 1}.</span> {f.name}
-                              </span>
-                              <span
-                                class="num"
-                                style={{
-                                  fontSize: 'var(--fs-2)',
-                                  fontWeight: 600,
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                  display: 'block',
-                                }}
-                                title={newName}
-                              >
-                                {newName ?? '—'}
-                              </span>
-                            </span>
-                          </span>
-                          <span style="display:flex;gap:var(--space-1);align-items:center;flex-shrink:0;">
-                            <button
-                              type="button"
-                              aria-label={t.moveUp}
-                              disabled={i === 0}
-                              onClick={() => move(i, -1)}
-                              style="background:none;border:none;cursor:pointer;color:var(--color-primary);font-size:var(--fs-2);padding:2px;"
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              aria-label={t.moveDown}
-                              disabled={i === sequence.length - 1}
-                              onClick={() => move(i, 1)}
-                              style="background:none;border:none;cursor:pointer;color:var(--color-primary);font-size:var(--fs-2);padding:2px;"
-                            >
-                              ↓
-                            </button>
-                            <button
-                              type="button"
-                              aria-label={t.backToPool}
-                              onClick={() => removeFromSequence(f)}
-                              style="background:none;border:none;cursor:pointer;color:var(--color-danger);font-size:var(--fs-2);padding:2px;"
-                            >
-                              ↩
-                            </button>
-                          </span>
-                        </div>
-                      );
-                    })}
+                          {newName ?? '—'}
+                        </span>
+                      )}
+                    </button>
+
+                    {selected && (
+                      <span
+                        aria-hidden="true"
+                        class="num"
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          left: '6px',
+                          width: '22px',
+                          height: '22px',
+                          borderRadius: '50%',
+                          background: 'var(--color-primary)',
+                          color: 'var(--color-primary-ink)',
+                          fontSize: 'var(--fs-1)',
+                          fontWeight: 700,
+                          lineHeight: '22px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {(pos as number) + 1}
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      aria-label={t.discardFile}
+                      onClick={() => discardFile(f)}
+                      style={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '4px',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        border: 'none',
+                        background: 'color-mix(in srgb, var(--color-bg) 70%, transparent)',
+                        color: 'var(--color-danger)',
+                        fontSize: 'var(--fs-1)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ×
+                    </button>
+
+                    {selected && (
+                      <span style={{ position: 'absolute', bottom: '4px', right: '4px', display: 'flex', gap: '2px' }}>
+                        <button
+                          type="button"
+                          aria-label={t.moveUp}
+                          disabled={pos === 0}
+                          onClick={() => move(pos as number, -1)}
+                          class="rn-step"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={t.moveDown}
+                          disabled={pos === sequence.length - 1}
+                          onClick={() => move(pos as number, 1)}
+                          class="rn-step"
+                        >
+                          ↓
+                        </button>
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <div style="padding:var(--space-4);border:1px dashed var(--color-border);border-radius:var(--radius-sm);color:var(--color-subtle);font-size:var(--fs-1);text-align:center;">
-                    {t.sequenceEmptyHint}
-                  </div>
-                )}
-              </div>
+                );
+              })}
             </div>
 
             <style>{`
-              .rn-columns {
+              .rn-grid {
                 display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: var(--space-4);
+                grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+                gap: var(--space-2);
                 margin-bottom: var(--space-4);
               }
-              .rn-column {
-                display: flex;
-                flex-direction: column;
-                gap: var(--space-2);
-                min-width: 0;
-              }
-              @media (max-width: 640px) {
-                .rn-columns {
-                  grid-template-columns: 1fr;
-                }
-              }
-              .rn-thumb {
-                position: relative;
-                overflow: hidden;
-              }
-              .rn-thumb:hover {
-                overflow: visible;
-                z-index: 5;
-              }
-              .rn-thumb__preview {
-                position: absolute;
-                bottom: calc(100% + 6px);
-                left: 0;
-                width: 140px;
-                height: 140px;
-                object-fit: cover;
+              .rn-step {
+                width: 20px;
+                height: 20px;
+                line-height: 1;
+                font-size: var(--fs-1);
+                background: var(--color-bg);
                 border: 1px solid var(--color-border);
-                border-radius: var(--radius-sm);
-                box-shadow: var(--shadow-2);
-                background: var(--color-surface);
-                opacity: 0;
-                pointer-events: none;
-                transform: scale(0.92);
-                transform-origin: bottom left;
-                transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
-                z-index: 20;
+                border-radius: var(--radius-xs);
+                color: var(--color-primary);
+                cursor: pointer;
               }
-              .rn-thumb:hover .rn-thumb__preview {
-                opacity: 1;
-                transform: scale(1);
+              .rn-step:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
               }
             `}</style>
 
@@ -579,7 +508,7 @@ export function RenameImagesTool({ locale = 'en' }: RenameImagesToolProps) {
         <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);">
           <span style="font-size: var(--fs-2); color: var(--color-subtle);" class="num">{sequence.length}</span>
           <span style="display: flex; gap: var(--space-2);">
-            {(pool.length > 0 || sequence.length > 0) && (
+            {allFiles.length > 0 && (
               <AppButton variant="secondary" onClick={clearAll}>
                 {t.clearAll}
               </AppButton>

@@ -12,22 +12,22 @@ export const de: ToolContent = {
   meta: {
     title: 'Bilder durchnummerieren — sortieren & umbenennen, ohne Upload | runlocally',
     description:
-      'Mehrere Fotos ablegen, per Drag & Drop in die gewünschte Reihenfolge bringen und alle durchnummeriert als .zip herunterladen — direkt im Browser. Dateiendungen bleiben unverändert. Nichts wird hochgeladen.',
+      'Mehrere Fotos ablegen, in der gewünschten Reihenfolge antippen und alle durchnummerierten als .zip herunterladen — direkt im Browser. Dateiendungen bleiben unverändert. Nichts wird hochgeladen.',
     ogTitle: 'Bilder durchnummerieren — sortieren & umbenennen',
     ogDescription:
-      'Foto-Miniaturansichten per Drag & Drop sortieren, ein Benennungsmuster festlegen und alle Dateien durchnummeriert als .zip herunterladen. Nichts wird hochgeladen.',
+      'Foto-Miniaturansichten in der gewünschten Reihenfolge antippen, ein Benennungsmuster festlegen und alle durchnummerierten Dateien als .zip herunterladen. Nichts wird hochgeladen.',
   },
 
   hero: {
     h1: 'Bilder durchnummerieren',
     tagline:
-      'Fotos per Drag & Drop in die richtige Reihenfolge bringen, ein Benennungsmuster festlegen und alle durchnummeriert als .zip herunterladen — im Browser. Dateiendungen bleiben immer erhalten.',
+      'Tippe deine Fotos in der gewünschten Reihenfolge an, lege ein Benennungsmuster fest und lade alle durchnummeriert als .zip herunter — im Browser. Dateiendungen bleiben immer erhalten.',
   },
 
   intro: {
-    h2: 'Fotos durch Sortieren in Serie umbenennen',
+    h2: 'Fotos durch Antippen in Serie umbenennen',
     paras: [
-      'Exporte von Kamera oder Smartphone landen selten in der gewünschten Reihenfolge, und Dutzende Dateien einzeln umzubenennen ist mühsam. Dieses Tool zeigt jedes Bild als Miniaturansicht, lässt dich sie per Drag & Drop in die gewünschte Reihenfolge bringen und benennt anschließend alle passend dazu um — in einem Schritt.',
+      'Exporte von Kamera oder Smartphone landen selten in der gewünschten Reihenfolge, und Dutzende Dateien einzeln umzubenennen ist mühsam. Dieses Tool zeigt jedes Bild als Miniaturansicht — tippe sie in der gewünschten Reihenfolge an, genau wie bei der Mehrfachauswahl von Fotos auf dem Smartphone, und jedes erhält eine Nummer. Nur durchnummerierte Fotos werden anschließend passend dazu umbenannt — in einem Schritt.',
       'Das Benennungsmuster ist eine kleine Vorlage: Schreibe {n} an die Stelle, an der die laufende Nummer stehen soll, oder {n:03}, um sie auf eine feste Stellenzahl aufzufüllen (001, 002, ...). Alles andere in der Vorlage wird genauso übernommen, wie du es eingibst. Die ursprüngliche Dateiendung bleibt immer exakt erhalten — geändert wird nur der Dateiname selbst.',
     ],
   },
@@ -50,15 +50,15 @@ export const de: ToolContent = {
     steps: [
       {
         h3: 'Bilder hinzufügen',
-        p: 'Klicke, um Dateien auszuwählen, oder ziehe sie irgendwo auf die Seite. Sie landen in der Liste "Hochgeladen" links. Mehrere Dateien auf einmal sind möglich.',
+        p: 'Klicke, um Dateien auszuwählen, oder ziehe sie irgendwo auf die Seite. Jedes Bild landet unnummeriert in einem gemeinsamen Raster. Mehrere Dateien auf einmal sind möglich.',
       },
       {
-        h3: 'Sequenz aufbauen',
-        p: 'Ziehe ein Bild aus "Hochgeladen" in die Liste "Sequenz" rechts (oder klicke auf sein +-Symbol) — in der gewünschten Reihenfolge. Mit "Alle zur Sequenz hinzufügen" verschiebst du alles auf einmal.',
+        h3: 'Fotos in Reihenfolge antippen',
+        p: 'Tippe ein Foto an, um ihm die nächste Nummer zu geben — genau die Geste, die du von der Mehrfachauswahl auf dem Smartphone kennst. "Alle restlichen auswählen" nummeriert alles auf einmal, in der Reihenfolge, in der es hinzugefügt wurde.',
       },
       {
         h3: 'Reihenfolge feinabstimmen',
-        p: 'Ziehe innerhalb der Sequenz oder nutze die Auf/Ab-Schaltflächen zur Feinabstimmung. Entfernte Bilder wandern zurück nach "Hochgeladen" — nichts geht verloren.',
+        p: 'Ziehe ein durchnummeriertes Foto, um es zu verschieben, oder nutze seine Auf/Ab-Schaltflächen. Tippst du ein durchnummeriertes Foto erneut an, verliert es seine Nummer — es bleibt im Raster, nichts geht verloren.',
       },
       {
         h3: 'Benennungsmuster festlegen',
@@ -66,7 +66,7 @@ export const de: ToolContent = {
       },
       {
         h3: '.zip herunterladen',
-        p: 'Jede Datei in der Sequenz wird passend zu ihrer Position umbenannt und in eine .zip-Datei gepackt — Dateiendungen werden nie geändert.',
+        p: 'Jedes durchnummerierte Foto wird passend zu seiner Position umbenannt und in eine .zip-Datei gepackt — unnummerierte Fotos bleiben außen vor, Dateiendungen werden nie geändert.',
       },
     ],
   },
@@ -87,7 +87,7 @@ export const de: ToolContent = {
     },
     {
       q: 'Was passiert, wenn zwei Dateien denselben Namen erhalten würden?',
-      a: 'Das kann nicht passieren. Jede Datei in der Sequenz erhält eine eigene, unterschiedliche Positionsnummer, und die Vorlage muss {n} enthalten — fehlt es, blockiert das Tool den Download mit einer klaren Meldung. Zwei unterschiedliche Positionen können strukturell nie denselben Namen ergeben.',
+      a: 'Das kann nicht passieren. Jedes durchnummerierte Foto erhält eine eigene, unterschiedliche Position, und die Vorlage muss {n} enthalten — fehlt es, blockiert das Tool den Download mit einer klaren Meldung. Zwei unterschiedliche Positionen können strukturell nie denselben Namen ergeben.',
     },
     {
       q: 'Werden die Bilder bearbeitet oder neu kodiert?',

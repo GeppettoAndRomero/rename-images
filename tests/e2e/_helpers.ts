@@ -25,11 +25,11 @@ export async function convert(page: Page): Promise<Download> {
     const file = new File([bytes], 'sample.jpg', { type: 'image/jpeg' });
     window.dispatchEvent(new CustomEvent('filesDropped', { detail: [file] }));
   }, RED_JPG_B64);
-  // Dropped files land in the pool first; move them into the sequence before
-  // downloading is possible. "#add-all-action" is an id (locale-independent),
-  // unlike the visible button text, so this helper works on every /<locale>/ route.
-  await page.locator('#add-all-action').waitFor({ state: 'visible' });
-  await page.locator('#add-all-action').click();
+  // Dropped files land in the grid unselected; select them before downloading
+  // is possible. "#select-all-action" is an id (locale-independent), unlike
+  // the visible button text, so this helper works on every /<locale>/ route.
+  await page.locator('#select-all-action').waitFor({ state: 'visible' });
+  await page.locator('#select-all-action').click();
   await page.locator('#download-action').waitFor({ state: 'visible' });
   const downloadPromise = page.waitForEvent('download', { timeout: 30_000 });
   await page.locator('#download-action').click();

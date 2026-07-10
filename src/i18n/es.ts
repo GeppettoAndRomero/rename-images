@@ -11,22 +11,22 @@ export const es: ToolContent = {
   meta: {
     title: 'Renombrar imágenes en secuencia — reordenar y renombrar, sin subir nada | runlocally',
     description:
-      'Suelta varias fotos, arrástralas al orden que quieras y descárgalas todas renombradas en secuencia como un .zip, directamente en tu navegador. Las extensiones no cambian. No se sube nada.',
+      'Suelta varias fotos, tócalas en el orden que quieras y descarga cada una numerada, renombrada en secuencia como un .zip, directamente en tu navegador. Las extensiones no cambian. No se sube nada.',
     ogTitle: 'Renombrar imágenes en secuencia — reordenar y renombrar',
     ogDescription:
-      'Reordena las miniaturas de tus fotos arrastrándolas, define un patrón de nombres y descarga todos los archivos renombrados en secuencia como un .zip. No se sube nada.',
+      'Toca las miniaturas de tus fotos en el orden que quieras, define un patrón de nombres y descarga cada archivo numerado renombrado en secuencia como un .zip. No se sube nada.',
   },
 
   hero: {
     h1: 'Renombrar imágenes en secuencia',
     tagline:
-      'Arrastra tus fotos al orden que quieras, define un patrón de nombres y descárgalas todas renumeradas como un .zip, en tu navegador. Las extensiones nunca cambian.',
+      'Toca tus fotos en el orden que quieras, define un patrón de nombres y descárgalas todas renumeradas como un .zip, en tu navegador. Las extensiones nunca cambian.',
   },
 
   intro: {
-    h2: 'Renombra fotos por lotes simplemente reordenándolas',
+    h2: 'Renombra fotos por lotes tocándolas en orden',
     paras: [
-      'Las fotos que exportas de la cámara o del móvil casi nunca llegan en el orden que quieres, y renombrar decenas de archivos uno por uno es tedioso. Esta herramienta muestra cada imagen como una miniatura, te deja arrastrarlas al orden que prefieras y renombra cada una para que coincida, todo a la vez.',
+      'Las fotos que exportas de la cámara o del móvil casi nunca llegan en el orden que quieres, y renombrar decenas de archivos uno por uno es tedioso. Esta herramienta muestra cada imagen como una miniatura: tócalas en el orden que prefieras, igual que al seleccionar varias fotos en el móvil, y a cada una le aparece un número. Solo las fotos numeradas se renombran, todas a la vez, para que coincidan con ese orden.',
       'El patrón de nombres es una plantilla sencilla: escribe {n} donde quieras que aparezca el número de secuencia, o {n:03} para rellenarlo con ceros hasta una cantidad fija de cifras (001, 002, ...). El resto de la plantilla se copia tal cual la escribas. La extensión original del archivo se mantiene siempre exactamente igual; solo cambia el nombre base.',
     ],
   },
@@ -49,15 +49,15 @@ export const es: ToolContent = {
     steps: [
       {
         h3: 'Añade tus imágenes',
-        p: 'Haz clic para elegir archivos, o suéltalos en cualquier parte de la página. Llegan a la lista "Subidas" de la izquierda. Puedes añadir varios a la vez.',
+        p: 'Haz clic para elegir archivos, o suéltalos en cualquier parte de la página. Cada foto llega a una sola cuadrícula, sin numerar. Puedes añadir varias a la vez.',
       },
       {
-        h3: 'Construye tu secuencia',
-        p: 'Arrastra una imagen desde "Subidas" hasta la "Secuencia" de la derecha (o haz clic en su botón +), en el orden que quieras. "Añadir todo a la secuencia" las mueve todas a la vez.',
+        h3: 'Toca las fotos en orden',
+        p: 'Toca una foto para darle el siguiente número — el mismo gesto que al seleccionar varias fotos en el móvil. "Seleccionar el resto" numera todo lo que quede de una vez, en el orden en que se añadió.',
       },
       {
         h3: 'Ajusta el orden',
-        p: 'Arrastra dentro de la secuencia, o usa los botones de subir/bajar, para ajustarla. Si quitas una imagen, vuelve a "Subidas": no se pierde.',
+        p: 'Arrastra una foto numerada para moverla, o usa sus botones de subir/bajar. Si tocas de nuevo una foto numerada, pierde su número, pero se queda ahí en la cuadrícula: no se pierde.',
       },
       {
         h3: 'Define el patrón de nombres',
@@ -65,7 +65,7 @@ export const es: ToolContent = {
       },
       {
         h3: 'Descarga el .zip',
-        p: 'Cada archivo de la secuencia se renombra según su posición y se empaqueta en un único .zip; las extensiones nunca cambian.',
+        p: 'Cada foto numerada se renombra según su posición y se empaqueta en un único .zip; las fotos sin numerar se quedan fuera y las extensiones nunca cambian.',
       },
     ],
   },
@@ -86,7 +86,7 @@ export const es: ToolContent = {
     },
     {
       q: '¿Qué pasa si dos archivos terminan con el mismo nombre?',
-      a: 'No puede pasar. Cada archivo de la secuencia recibe un número de posición distinto, y la plantilla debe contener {n} —si no lo tiene, la herramienta bloquea la descarga con un mensaje claro—. Dos posiciones distintas nunca pueden generar el mismo nombre.',
+      a: 'No puede pasar. Cada foto numerada recibe una posición distinta, y la plantilla debe contener {n} —si no lo tiene, la herramienta bloquea la descarga con un mensaje claro—. Dos posiciones distintas nunca pueden generar el mismo nombre.',
     },
     {
       q: '¿Se editan o se vuelven a codificar las imágenes?',

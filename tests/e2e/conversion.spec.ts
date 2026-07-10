@@ -35,8 +35,8 @@ async function dropFixtures(page: import('@playwright/test').Page) {
   }, encoded);
 }
 
-test.describe('rename + reorder + zip', () => {
-  test('renames in the reordered sequence, preserves each extension, uploads nothing', async ({ page }) => {
+test.describe('tap-to-order rename + zip', () => {
+  test('renames in the tapped/reordered sequence, preserves each extension, uploads nothing', async ({ page }) => {
     const external: string[] = [];
     page.on('request', (req) => {
       const url = req.url();
@@ -49,34 +49,36 @@ test.describe('rename + reorder + zip', () => {
     await waitReady(page);
     await dropFixtures(page);
 
-    // Dropped files land in the pool first; move them all into the sequence.
-    await page.click('#add-all-action');
+    // "Select all remaining" assigns numbers in grid/upload order: blue, red, green.
+    await page.click('#select-all-action');
 
-    // Dropped order is blue, red, green. "Add all" preserves that order into the
-    // sequence. Default template {n:03} previews 001.jpg/002.jpg/003.png.
-    const sequence = page.getByRole('list', { name: /sequence/i });
-    await expect(sequence.getByText('blue.jpg')).toBeVisible();
-    await expect(sequence.getByText('001.jpg', { exact: true })).toBeVisible();
+    const grid = page.getByRole('list', { name: /uploaded/i });
+    const cardFor = (name: string) => grid.getByRole('listitem').filter({ hasText: name });
 
-    // Move the last item (green.png) to the front with the up button, twice.
-    const items = sequence.getByRole('listitem');
-    await expect(items).toHaveCount(3);
-    const greenItem = items.filter({ hasText: 'green.png' });
-    await greenItem.getByRole('button', { name: /move up/i }).click();
-    await greenItem.getByRole('button', { name: /move up/i }).click();
+    // Grid DOM order is fixed (upload order), independent of sequence order — so
+    // assertions look up each card by filename, not by position in the grid.
+    // Default template {n:03} previews 001/002/003 in the order tapped.
+    await expect(cardFor('blue.jpg')).toContainText('001.jpg');
+    await expect(cardFor('red.jpg')).toContainText('002.jpg');
+    await expect(cardFor('green.png')).toContainText('003.png');
+
+    // Move green to the front with its own up button, twice.
+    const greenUp = cardFor('green.png').getByRole('button', { name: /move up/i });
+    await greenUp.click();
+    await greenUp.click();
     // Order is now: green, blue, red.
-    await expect(items.nth(0)).toContainText('green.png');
-    await expect(items.nth(1)).toContainText('blue.jpg');
-    await expect(items.nth(2)).toContainText('red.jpg');
+    await expect(cardFor('green.png')).toContainText('001.png');
+    await expect(cardFor('blue.jpg')).toContainText('002.jpg');
+    await expect(cardFor('red.jpg')).toContainText('003.jpg');
 
     // Custom template + a non-default start number.
     await page.fill('#rename-template', 'photo-{n:02}');
     await page.fill('#rename-start', '5');
 
     // Live preview reflects the new template before any download happens.
-    await expect(items.nth(0)).toContainText('photo-05.png'); // green.png, extension kept
-    await expect(items.nth(1)).toContainText('photo-06.jpg'); // blue.jpg
-    await expect(items.nth(2)).toContainText('photo-07.jpg'); // red.jpg
+    await expect(cardFor('green.png')).toContainText('photo-05.png');
+    await expect(cardFor('blue.jpg')).toContainText('photo-06.jpg');
+    await expect(cardFor('red.jpg')).toContainText('photo-07.jpg');
 
     const downloadPromise = page.waitForEvent('download', { timeout: 30_000 });
     await page.click('#download-action');
@@ -103,44 +105,46 @@ test.describe('rename + reorder + zip', () => {
     await page.goto('/rename-images/');
     await waitReady(page);
     await dropFixtures(page);
-    await page.click('#add-all-action'); // must be in the sequence for the template check to even run
+    await page.click('#select-all-action'); // must be selected for the template check to even run
 
     await page.fill('#rename-template', 'photo');
     await expect(page.getByRole('alert')).toContainText(/sequence number/i);
     await expect(page.locator('#download-action')).toBeDisabled();
   });
 
-  test('download is disabled with an empty sequence and enables once items are added', async ({ page }) => {
+  test('download is disabled with nothing selected and enables once items are added', async ({ page }) => {
     await page.goto('/rename-images/');
     await waitReady(page);
     await dropFixtures(page);
 
     await expect(page.locator('#download-action')).toBeDisabled();
-    await expect(page.getByRole('list', { name: /uploaded/i }).getByRole('listitem')).toHaveCount(3);
-    // No role="list" is rendered for the sequence column while it's empty (an
-    // empty-state placeholder is shown instead) — see the widget's JSX.
-    await expect(page.getByRole('list', { name: /sequence/i })).toHaveCount(0);
+    const grid = page.getByRole('list', { name: /uploaded/i });
+    await expect(grid.getByRole('listitem')).toHaveCount(3);
+    await expect(grid.getByRole('button', { pressed: true })).toHaveCount(0);
 
-    await page.click('#add-all-action');
+    await page.click('#select-all-action');
     await expect(page.locator('#download-action')).toBeEnabled();
   });
 
-  test('removing from the sequence returns a file to the pool; discarding from the pool removes it entirely', async ({ page }) => {
+  test('tapping a numbered thumbnail again removes it from the sequence; discarding removes it entirely', async ({ page }) => {
     await page.goto('/rename-images/');
     await waitReady(page);
     await dropFixtures(page);
-    await page.click('#add-all-action');
+    await page.click('#select-all-action');
 
-    const sequence = page.getByRole('list', { name: /sequence/i });
-    const greenSeqItem = sequence.getByRole('listitem').filter({ hasText: 'green.png' });
-    await greenSeqItem.getByRole('button', { name: /back to pool/i }).click();
+    const grid = page.getByRole('list', { name: /uploaded/i });
+    const greenCard = grid.getByRole('listitem').filter({ hasText: 'green.png' });
+    // The toggle button's accessible name always starts with the filename; the
+    // discard (×) button's name is just "Discard", so matching by name avoids
+    // ambiguity with pressed:false also matching buttons with no aria-pressed at all.
+    const greenToggle = greenCard.getByRole('button', { name: /^green\.png/i });
+    await greenToggle.click(); // tap the numbered thumbnail again
 
-    await expect(sequence.getByRole('listitem')).toHaveCount(2);
-    const pool = page.getByRole('list', { name: /uploaded/i });
-    const greenPoolItem = pool.getByRole('listitem').filter({ hasText: 'green.png' });
-    await expect(greenPoolItem).toBeVisible();
+    await expect(greenToggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(grid.getByRole('listitem')).toHaveCount(3); // still in the grid, just unselected
 
-    await greenPoolItem.getByRole('button', { name: /discard/i }).click();
-    await expect(page.getByRole('listitem').filter({ hasText: 'green.png' })).toHaveCount(0);
+    await greenCard.getByRole('button', { name: /discard/i }).click();
+    await expect(grid.getByRole('listitem')).toHaveCount(2);
+    await expect(page.getByText('green.png')).toHaveCount(0);
   });
 });

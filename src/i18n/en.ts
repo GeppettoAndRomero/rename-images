@@ -6,22 +6,22 @@ export const en: ToolContent = {
   meta: {
     title: 'Rename Images in Sequence — Reorder & Batch Rename, No Upload | runlocally',
     description:
-      'Drop several photos, drag them into the order you want, and download them all renamed in sequence as a .zip — right in your browser. Extensions are kept unchanged. Nothing is uploaded.',
+      'Drop several photos, tap them in the order you want, and download every numbered one renamed in sequence as a .zip — right in your browser. Extensions are kept unchanged. Nothing is uploaded.',
     ogTitle: 'Rename Images in Sequence — Reorder & Batch Rename',
     ogDescription:
-      'Reorder photo thumbnails by drag-and-drop, set a naming pattern, and download every file renamed in sequence as a .zip. Nothing is uploaded.',
+      'Tap photo thumbnails in the order you want, set a naming pattern, and download every numbered file renamed in sequence as a .zip. Nothing is uploaded.',
   },
 
   hero: {
     h1: 'Rename Images in Sequence',
     tagline:
-      'Drag your photos into order, set a naming pattern, and download them all renumbered as a .zip — in your browser. Extensions never change.',
+      'Tap your photos in the order you want, set a naming pattern, and download them all renumbered as a .zip — in your browser. Extensions never change.',
   },
 
   intro: {
-    h2: 'Batch-rename photos by reordering them',
+    h2: 'Batch-rename photos by tapping them in order',
     paras: [
-      'Camera and phone exports rarely land in the order you want them, and manually renaming dozens of files one by one is tedious. This tool shows every image as a thumbnail, lets you drag them into the sequence you want, and renames each one to match — all at once.',
+      'Camera and phone exports rarely land in the order you want them, and manually renaming dozens of files one by one is tedious. This tool shows every image as a thumbnail — tap them in the order you want, the same way you multi-select photos on your phone, and a numbered badge appears on each one. Only numbered photos get renamed, all at once, to match that order.',
       'The naming pattern is a small template: write {n} where the sequence number should go, or {n:03} to pad it to a fixed number of digits (001, 002, ...). Everything else in the template is copied as typed. The original file extension is always kept exactly as it was — only the base name changes.',
     ],
   },
@@ -44,15 +44,15 @@ export const en: ToolContent = {
     steps: [
       {
         h3: 'Add your images',
-        p: 'Click to choose files, or drop them anywhere on the page. They land in the Uploaded list on the left; multiple files at once is fine.',
+        p: 'Click to choose files, or drop them anywhere on the page. Every photo lands in one grid, unnumbered; multiple files at once is fine.',
       },
       {
-        h3: 'Build your sequence',
-        p: 'Drag a photo from Uploaded into the Sequence list on the right — or click its + button — in the order you want. "Add all" moves everything at once.',
+        h3: 'Tap photos in order',
+        p: 'Tap a photo to give it the next number — the same gesture as multi-selecting photos on your phone. "Select all remaining" numbers everything at once, in the order it was added.',
       },
       {
         h3: 'Fine-tune the order',
-        p: 'Drag within the Sequence list, or use the up/down buttons, to adjust it further. Removing an item sends it back to Uploaded, so nothing is lost.',
+        p: 'Drag a numbered photo to move it, or use its ↑/↓ buttons. Tapping a numbered photo again removes its number — it stays right there in the grid, so nothing is lost.',
       },
       {
         h3: 'Set the naming pattern',
@@ -60,7 +60,7 @@ export const en: ToolContent = {
       },
       {
         h3: 'Download the .zip',
-        p: 'Every file in the Sequence is renamed to match its position and bundled into one .zip — extensions are never changed.',
+        p: 'Every numbered photo is renamed to match its position and bundled into one .zip — unnumbered photos are left out, and extensions are never changed.',
       },
     ],
   },
@@ -81,7 +81,7 @@ export const en: ToolContent = {
     },
     {
       q: 'What happens if two files would end up with the same name?',
-      a: "It can't happen. Every file in the Sequence gets a distinct position number, and the template must contain {n} — the tool blocks download with a clear message until it does. Two different positions can never render the same name.",
+      a: "It can't happen. Every numbered photo gets a distinct position, and the template must contain {n} — the tool blocks download with a clear message until it does. Two different positions can never render the same name.",
     },
     {
       q: 'Does it edit or re-encode the images?',
